@@ -9,9 +9,12 @@ parser = argparse.ArgumentParser(description='use Strace to figure out where fil
 parser.add_argument('--splunkpid', dest='splunkpid',nargs=1, required=True,
 		help='the pid of the parent splunkd process')
 parser.add_argument('--treedepth', dest='treedepth',nargs=1, required=True,help='how deep do you want to track in the file system hierarchy?')
+parser.add_argument('--verbose', dest='verbose', action='store_true',default=False,
+		help='write debugging information to stdout')
 
 args = parser.parse_args()
 
+verbose=args.verbose
 splunkpid=args.splunkpid[0]
 treedepth=int(args.treedepth[0]) + 1
 strace_string = "strace -f -p %s -y -e trace=open,close,read,write" %(splunkpid)
@@ -56,15 +59,19 @@ def run_command(command):
 						tree_list[path]['total_read_bytes']+=int(m.group(4))
 						tree_list[path]['total_bytes']+=int(m.group(4))
 					#print "Action: %s path: %s bytes %s" %(m.group(2),m.group(3),m.group(4))
-			if progress > 100:
+			if progress > 1000:
 				progress = 0
+				print "Still watching, hit ctrl-c to stop..."
+				if verbose:
+					for path_name in tree_list:
+						print "For path: %s total_bytes is currently %d " %(path_name, tree_list[path_name]['total_bytes'])
 			else:
 				progress+=1
 
 			rc = process.poll()
 	except KeyboardInterrupt:
 		for path_name in tree_list:
-			print "For path: %s  Stats: " %(path_name)
+			print "For path: %s  Stats: " %(path_name),
 			print (tree_list[path_name])
 	return rc
 
